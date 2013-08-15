@@ -48,7 +48,7 @@ if __name__ == '__main__':
         #else:
             #bin_no += "0"
         #digits -= 1
-        #substract_value /= 2
+        #substract_value //= 2
     #return bin_no
 
 #def reverse_string(str):
