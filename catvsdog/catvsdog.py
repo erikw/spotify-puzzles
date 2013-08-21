@@ -13,18 +13,43 @@ import sys
 
 class Vertex(object):
     def __init__(self, name):
-        self.name = name
+        self._name = name
+
+    def get_name(self):
+        return self._name
+
+    def __str__(self):
+        return self._name
+
+    __unicode__ = __str__
 
 class Vote_vertex(Vertex):
     def __init__(self, stay, away, *args, **namedargs):
         super(Vote_vertex, self).__init__(*args, **namedargs)
-        self.stay = stay
-        self.away = away
+        self._stay = stay
+        self._away = away
+        self._edges = set()
+
+    def add_edge_to(self, other):
+        self._edges.add(other)
+
+    def has_edge_to(self, other):
+        return other in self._edges
+
+    def __str__(self):
+        return super(Vote_vertex, self).__str__() + "(s=%s, a=%s)" % (self._stay, self._away)
+
+    __unicode__ = __str__
 
 class Edge(object):
     def __init__(self, vertex1, vertex2):
         self._vertex1 = vertex1
-        self._vertex2 = vertex1
+        self._vertex2 = vertex2
+
+    def __str__(self):
+        return "%s<-->%s" % (self._vertex1.get_name(), self._vertex2.get_name())
+
+    __unicode__ = __str__
 
 class Graph(object):
     def __init__(self):
@@ -37,6 +62,27 @@ class Graph(object):
     def add_edge(self, vertex1, vertex2):
         e = Edge(vertex1, vertex2)
         self._edges.add(e)
+        vertex1.add_edge_to(vertex2)
+        vertex2.add_edge_to(vertex1)
+
+    def nbr_verticies(self):
+        return len(self._verticies)
+
+    def edge_exist(self, vertex1, vertex2):
+        return vertex1.has_edge_to(vertex2)
+
+    def __str__(self):
+        output = "verticies:\n" + ",\n".join("\t%s" % v for v in self._verticies) + "\n"
+        output += "edges:\n" + "\n".join("\t%s" % e for e in self._edges)
+        return output
+
+    __unicode__ = __str__
+
+
+def add_conflict_edges(graph, node, node_set):
+        for conflict_node in node_set:
+            if not graph.edge_exist(node, conflict_node):
+                graph.add_edge(node, conflict_node)
 
 
 def read_votes():
@@ -48,15 +94,12 @@ def read_votes():
     for vote in range(nbr_votes):
         stay, away = sys.stdin.readline().split()
         node = Vote_vertex(stay, away, "v%d" % i)
+        graph.add_vertex(node)
         i += 1
-
         if stay in away_votes:
-            for conflict_node in away_votes[stay]:
-                graph.add_edge(node, conflict_node)
-
+            add_conflict_edges(graph, node, away_votes[stay])
         if away in stay_votes:
-            for conflict_node in stay_votes[away]:
-                graph.add_edge(node, conflict_node)
+            add_conflict_edges(graph, node, stay_votes[away])
 
         if stay in stay_votes:
             stay_votes[stay].add(node)
@@ -67,12 +110,20 @@ def read_votes():
             away_votes[away].add(node)
         else:
             away_votes[away] = {node}
+    return graph
 
+def hopcoft_karp(graph):
+    
+
+def max_matching(graph):
+    return hopcoft_karp(graph)
 
 def main():
     nbr_tests = int(sys.stdin.readline())
     for i in range(nbr_tests):
-        compat_graph = read_votes()
+        conflict_graph = read_votes()
+        #print(conflict_graph)
+        print(conflict_graph.nbr_verticies() - max_matching(conflict_graph))
     return 0
 
 
