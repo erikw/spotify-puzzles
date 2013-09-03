@@ -9,18 +9,19 @@ Determine the subset of dogs and cats that gets to stay in the program to maximi
 4. Thus return as answer |V| - maxedgematch(G_c), which can be done with Network Flow. However the best algo seems to be Hopcroft-Karp's, so lets use that one.
 """
 
+
 import sys
 
 class Vertex(object):
     def __init__(self, name):
         self.name = name
-        self.edges = set()
+        self.neighbours = set()
 
     def add_edge_to(self, other):
-        self.edges.add(other)
+        self.neighbours.add(other)
 
     def has_edge_to(self, other):
-        return other in self.edges
+        return other in self.neighbours
 
     def __str__(self):
         return self.name
@@ -38,11 +39,11 @@ class Vote_vertex(Vertex):
 
 class Edge(object):
     def __init__(self, vertex1, vertex2):
-        self._vertex1 = vertex1
-        self._vertex2 = vertex2
+        self.vertex1 = vertex1
+        self.vertex2 = vertex2
 
     def __str__(self):
-        return "%s<-->%s" % (self._vertex1.name, self._vertex2.name)
+        return "%s<-->%s" % (self.vertex1.name, self.vertex2.name)
 
     __repr__ = __str__
 
@@ -78,9 +79,8 @@ def add_conflict_edges(graph, node, node_set):
             if not graph.edge_exist(node, conflict_node):
                 graph.add_edge(node, conflict_node)
 
-
 def read_votes():
-    nbr_cats, nbr_dogs, nbr_votes = (int(num) for num  in sys.stdin.readline().split())
+    nbr_cats, nbr_dogs, nbr_votes = (int(num) for num in sys.stdin.readline().split())
     graph = Graph()
     stay_votes = {}
     away_votes = {}
@@ -114,7 +114,7 @@ def bipartition_recurse(u, v, visited, node, depth=0):
         u.add(node)
     else:
         v.add(node)
-    for neighbour in node.edges:
+    for neighbour in node.neighbours:
         bipartition_recurse(u, v, visited, neighbour, depth + 1)
 
 
@@ -125,69 +125,113 @@ def bipartition(graph):
     for node in graph.verticies:
         if not node in visited:
             bipartition_recurse(u, v, visited, node)
-    print("u: %s" % u)
-    print("v: %s" % v)
+    #print("bipartiton:")
+    #print("u: %s" % u)
+    #print("v: %s" % v)
     return (u, v)
 
 
-def bfs_find_free_rec(u_matched, v_matched, v_free, layer, depth=0):
-    if len(layer) == 0:
-        print("returning empty set")
-        return set()
-    next_layer = set()
-    if depth % 2 == 0:  # On U-side of bipartition.
-        for u_node in layer:
-            for neighbour in u_node.edges:
-                if neighbour not in v_matched:
-                    next_layer.add(neighbour)
-        print("u next layer: %s\n" % next_layer)
-        return bfs_find_free_rec(u_matched, v_matched, v_free, next_layer, depth + 1)
-    else:   # On V-side. of bipartition.
-        f = set([lnode if lnode in v_free else None for lnode in layer])
-        if len(f) > 0:
-            print("returning f = %s\n" % f)
-            return f
-        for v_node in layer:
-            for neighbour in v_node.edges:
-                if neighbour in u_matched:
-                    next_layer.add(neighbour)
-        print("v next layer: %s\n" % next_layer)
-        return bfs_find_free_rec(u_matched, v_matched, v_free, next_layer, depth + 1)
+
+def free_verticies(u, v, matching):
+    u_free = u.copy()
+    v_free = v.copy()
+    for (m_u, m_v) in matching:
+        u_free.discard(m_u)
+        v_free.discard(m_v)
+    return (u_free, v_free)
+
+
+def dfs_rec(cur_node, end_nodes, path):
+    if cur_node in end_nodes:
+        path.append(cur_node)
+        return True
+    else:
+        path.append(cur_node)
+        for neighbour in cur_node.neighbours:
+            if dfs_rec(neighbour, end_nodes, path):
+                return True
+        path.pop()
+        return False
+
+def partial_dfs(u, v, matching, start_node, end_nodes):
+    #print("DFS from {:s} to end nodes: {:s}".format(start_node, end_nodes))
+    path = []
+    if dfs_rec(start_node, end_nodes, path):
+        i = 0
+        for node in path:
+            for neighbour in node.neighbours:
+                neighbour.neighbours.remove(node)
+            if i % 2 == 0:
+                u.discard(node)
+            else:
+                #print("discardingin in v {:s}".format(node))
+                v.discard(node)
+            i += 1
+    return path
+
+def tuplify_edges(verticies):
+    if len(verticies) < 2:
+        return ()
+    edges = []
+    node_a = verticies[0]
+    i = 0
+    for node_b in verticies[1:]:
+        if i % 2 == 0:
+            edges.append((node_a, node_b))
+        else:
+            edges.append((node_b, node_a))
+        node_a = node_b
+        i += 1
+    return tuple(edges)
+
+
+def maximal_set_aug_paths(u, v, matching):
+    #print("Searching for new vertex-disjoint paths.")
+    paths = set()
+    #u_free, v_free = free_verticies(u, v, matching)
+    #print("free:")
+    #print(u_free)
+    #print(v_free)
+    #print("end-free:")
+    #for u_node in u_free:
+
+    u_free, v_free = free_verticies(u, v, matching)
+    #print("u_free: {:s}".format(u_free))
+    #print("v_free: {:s}".format(v_free))
+    for u_node in u_free:
+        path = partial_dfs(u, v, matching, u_node, v_free)
+        if len(path) > 0:
+            #print("path found: {:s}".format(path))
+            paths.add(tuplify_edges(path))
+    return paths
 
 
 def hopcoft_karp(u, v):
-    u_free = u.copy()
-    v_free = v.copy()
-    #matching = set()
-    u_matched = set()
-    v_matched = set()
-    more_aug_paths = True
-    while more_aug_paths:
-        #f = bfs_find_free(u_free, v_free, matched)
-        free_u_node = iter(u_free).next()
-        print("first free u node is %s\n" % free_u_node)
-        f = bfs_find_free_rec(u_matched, v_matched, v_free, {free_u_node})
-        if len(f) > 0:
-
-
-
-
-        more_aug_paths = False
-    return len(u_matched) + len(v_matched)
-        
-
-
-    return len(matching)
+    matching = set() # set of edges tuples. U nodes always at pos 0 in the tuples
+    more_augmenting_paths = True
+    while more_augmenting_paths:
+        aug_paths = maximal_set_aug_paths(u, v, matching)
+        if len(aug_paths) > 0:
+            for path in aug_paths:
+                #matching = symmetric_difference(matching, path)
+                matching =  matching.symmetric_difference(path)
+        else:
+            more_augmenting_paths = False
+    #print("matching:---")
+    #print(matching)
+    #print("end-matching:---")
+    return matching
 
 def max_matching(graph):
-    return hopcoft_karp(*bipartition(graph))
+    u, v = bipartition(graph)
+    return hopcoft_karp(u, v)
 
 def main():
     nbr_tests = int(sys.stdin.readline())
     for i in range(nbr_tests):
         conflict_graph = read_votes()
         #print(conflict_graph)
-        print(conflict_graph.nbr_verticies() - max_matching(conflict_graph))
+        print(conflict_graph.nbr_verticies() - len(max_matching(conflict_graph)))
     return 0
 
 
