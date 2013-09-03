@@ -51,63 +51,27 @@ class Vote_vertex(Vertex):
     def __str__(self):
         return super(Vote_vertex, self).__str__() + "(s=%s, a=%s)" % (self._stay, self._away)
 
-class Edge(object):
-    def __init__(self, vertex1, vertex2):
-        self.vertex1 = vertex1
-        self.vertex2 = vertex2
-
-    def __str__(self):
-        return "%s<-->%s" % (self.vertex1.name, self.vertex2.name)
-
-    __repr__ = __str__
-
-
-class Graph(object):
-    def __init__(self):
-        self.verticies = set()
-        self.edges = set()
-
-    def add_vertex(self, vertex):
-        self.verticies.add(vertex)
-
-    def add_edge(self, vertex1, vertex2):
-        e = Edge(vertex1, vertex2)
-        self.edges.add(e)
-        vertex1.add_edge_to(vertex2)
-        vertex2.add_edge_to(vertex1)
-
-    def nbr_verticies(self):
-        return len(self.verticies)
-
-    def edge_exist(self, vertex1, vertex2):
-        return vertex1.has_edge_to(vertex2)
-
-    def __str__(self):
-        output = "verticies:\n" + ",\n".join("\t%s" % v for v in self.verticies) + "\n"
-        output += "edges:\n" + "\n".join("\t%s" % e for e in self.edges)
-        return output
-
-
-def add_conflict_edges(graph, node, node_set):
+def add_conflict_edges(verticies, node, node_set):
         for conflict_node in node_set:
-            if not graph.edge_exist(node, conflict_node):
-                graph.add_edge(node, conflict_node)
+            if not node.has_edge_to(conflict_node):
+                node.add_edge_to(conflict_node)
+                conflict_node.add_edge_to(node)
 
 def read_votes():
     nbr_cats, nbr_dogs, nbr_votes = (int(num) for num in sys.stdin.readline().split())
-    graph = Graph()
+    verticies = set()
     stay_votes = {}
     away_votes = {}
     i = 1
     for vote in range(nbr_votes):
         stay, away = sys.stdin.readline().split()
         node = Vote_vertex(stay, away, "v%d" % i)
-        graph.add_vertex(node)
+        verticies.add(node)
         i += 1
         if stay in away_votes:
-            add_conflict_edges(graph, node, away_votes[stay])
+            add_conflict_edges(verticies, node, away_votes[stay])
         if away in stay_votes:
-            add_conflict_edges(graph, node, stay_votes[away])
+            add_conflict_edges(verticies, node, stay_votes[away])
 
         if stay in stay_votes:
             stay_votes[stay].add(node)
@@ -118,7 +82,7 @@ def read_votes():
             away_votes[away].add(node)
         else:
             away_votes[away] = {node}
-    return graph
+    return verticies
 
 
 def bipartition_recurse(u, v, visited, node, depth=0):
@@ -132,16 +96,16 @@ def bipartition_recurse(u, v, visited, node, depth=0):
         bipartition_recurse(u, v, visited, neighbour, depth + 1)
 
 
-def bipartition(graph):
+def bipartition(verticies):
     u = set()
     v = set()
     visited = set()
-    for node in graph.verticies:
+    for node in verticies:
         if not node in visited:
             bipartition_recurse(u, v, visited, node)
-    #debug("bipartiton:")
-    #debug("u: %s" % u)
-    #debug("v: %s" % v)
+    debug("bipartiton:")
+    debug("u: %s" % u)
+    debug("v: %s" % v)
     return (u, v)
 
 
@@ -155,16 +119,19 @@ def free_verticies(u, v, matching):
     return (u_free, v_free)
 
 
-def dfs_rec(cur_node, end_nodes, path, discarded_nodes):
+def dfs_rec(cur_node, end_nodes, path, discarded_nodes, visited):
+    visited.add(cur_node)
     if cur_node in end_nodes:
         path.append(cur_node)
         return True
     else:
         path.append(cur_node)
         #debug("poppin' in {:s}, discarded_nodes={:s}".format(cur_node, discarded_nodes))
+        debug("poppin' in {:s}".format(cur_node))
         for neighbour in cur_node.neighbours:
-            if neighbour not in discarded_nodes and neighbour not in path and dfs_rec(neighbour, end_nodes, path, discarded_nodes):
+            if neighbour not in visited and neighbour not in discarded_nodes and dfs_rec(neighbour, end_nodes, path, discarded_nodes, visited):
                 return True
+        debug("poppin' out {:s}".format(cur_node))
         path.pop()
         return False
 
@@ -172,7 +139,7 @@ def partial_dfs(u, v, matching, start_node, end_nodes, discarded_nodes):
     debug("DFS from {:s} to end nodes: {:s}".format(start_node, end_nodes))
     path = []
     if len(end_nodes) > 0:
-        if dfs_rec(start_node, end_nodes, path, discarded_nodes):
+        if dfs_rec(start_node, end_nodes, path, discarded_nodes, set()):
             discarded_nodes.update(path)
             #i = 0
             #for node in path:
@@ -202,12 +169,9 @@ def tuplify_edges(verticies):
     return tuple(edges)
 
 
-#def maximal_set_aug_paths(u_orig, v_orig, matching):
 def maximal_set_aug_paths(u, v, matching):
     debug("Searching for new vertex-disjoint paths.")
-
     paths = set()
-
     u_free, v_free = free_verticies(u, v, matching)
     debug("u_free: {:s}".format(u_free))
     debug("v_free: {:s}".format(v_free))
@@ -227,15 +191,14 @@ def hopcoft_karp(u, v):
         aug_paths = maximal_set_aug_paths(u, v, matching)
         if len(aug_paths) > 0:
             for path in aug_paths:
-                #matching = symmetric_difference(matching, path)
                 matching =  matching.symmetric_difference(path)
                 debug("extending match to {:s}".format(matching))
         else:
             debug("no more aug paths")
             more_augmenting_paths = False
-    #debug("matching:---")
-    #debug(matching)
-    #debug("end-matching:---")
+    debug("matching:---")
+    debug(matching)
+    debug("end-matching:---")
     return matching
 
 def max_matching(graph):
@@ -248,9 +211,9 @@ def main():
         print("0")
     else:
         for i in range(nbr_tests):
-            conflict_graph = read_votes()
-            debug(conflict_graph)
-            print(conflict_graph.nbr_verticies() - len(max_matching(conflict_graph)))
+            conflict_graph_nodes = read_votes()
+            debug(conflict_graph_nodes)
+            print(len(conflict_graph_nodes) - len(max_matching(conflict_graph_nodes)))
     return 0
 
 
