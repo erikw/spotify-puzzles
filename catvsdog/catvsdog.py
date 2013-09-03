@@ -11,6 +11,7 @@ Determine the subset of dogs and cats that gets to stay in the program to maximi
 
 
 import sys
+import copy
 
 class Vertex(object):
     def __init__(self, name):
@@ -23,6 +24,9 @@ class Vertex(object):
     def has_edge_to(self, other):
         return other in self.neighbours
 
+    def __eq__(self, other):
+        return self.name == other.name and self.neighbours == other.neighbours
+
     def __str__(self):
         return self.name
 
@@ -33,6 +37,10 @@ class Vote_vertex(Vertex):
         super(Vote_vertex, self).__init__(*args, **namedargs)
         self._stay = stay
         self._away = away
+
+    def __eq__(self, other):
+        #return self._stay == other._stay and self._away == other._away
+        return Vertex.__eq__(self, other) and self._stay == other._stay and self._away == other._away # TODO how in py?
 
     def __str__(self):
         return super(Vote_vertex, self).__str__() + "(s=%s, a=%s)" % (self._stay, self._away)
@@ -141,32 +149,35 @@ def free_verticies(u, v, matching):
     return (u_free, v_free)
 
 
-def dfs_rec(cur_node, end_nodes, path):
+def dfs_rec(cur_node, end_nodes, path, discarded_nodes):
     if cur_node in end_nodes:
         path.append(cur_node)
         return True
     else:
         path.append(cur_node)
+        #print("poppin' in {:s}, discarded_nodes={:s}".format(cur_node, discarded_nodes))
         for neighbour in cur_node.neighbours:
-            if dfs_rec(neighbour, end_nodes, path):
+            if neighbour not in discarded_nodes and neighbour not in path and dfs_rec(neighbour, end_nodes, path, discarded_nodes):
                 return True
         path.pop()
         return False
 
-def partial_dfs(u, v, matching, start_node, end_nodes):
+def partial_dfs(u, v, matching, start_node, end_nodes, discarded_nodes):
     #print("DFS from {:s} to end nodes: {:s}".format(start_node, end_nodes))
     path = []
-    if dfs_rec(start_node, end_nodes, path):
-        i = 0
-        for node in path:
-            for neighbour in node.neighbours:
-                neighbour.neighbours.remove(node)
-            if i % 2 == 0:
-                u.discard(node)
-            else:
-                #print("discardingin in v {:s}".format(node))
-                v.discard(node)
-            i += 1
+    if len(end_nodes) > 0:
+        if dfs_rec(start_node, end_nodes, path, discarded_nodes):
+            discarded_nodes.update(path)
+            #i = 0
+            #for node in path:
+                #for neighbour in node.neighbours:
+                    #neighbour.neighbours.remove(node)
+                #if i % 2 == 0:
+                    #u.discard(node)
+                #else:
+                    ##print("discardingin in v {:s}".format(node))
+                    #v.discard(node)
+                #i += 1
     return path
 
 def tuplify_edges(verticies):
@@ -185,21 +196,22 @@ def tuplify_edges(verticies):
     return tuple(edges)
 
 
+#def maximal_set_aug_paths(u_orig, v_orig, matching):
 def maximal_set_aug_paths(u, v, matching):
+    #u = u_orig.copy() # TODO needed?
+    #v = v_orig.copy()
+    #u = copy.deepcopy(u_orig)
+    #v = copy.deepcopy(v_orig)
     #print("Searching for new vertex-disjoint paths.")
+
     paths = set()
-    #u_free, v_free = free_verticies(u, v, matching)
-    #print("free:")
-    #print(u_free)
-    #print(v_free)
-    #print("end-free:")
-    #for u_node in u_free:
 
     u_free, v_free = free_verticies(u, v, matching)
     #print("u_free: {:s}".format(u_free))
     #print("v_free: {:s}".format(v_free))
+    discarded_nodes = set()
     for u_node in u_free:
-        path = partial_dfs(u, v, matching, u_node, v_free)
+        path = partial_dfs(u, v, matching, u_node, v_free, discarded_nodes)
         if len(path) > 0:
             #print("path found: {:s}".format(path))
             paths.add(tuplify_edges(path))
@@ -215,7 +227,9 @@ def hopcoft_karp(u, v):
             for path in aug_paths:
                 #matching = symmetric_difference(matching, path)
                 matching =  matching.symmetric_difference(path)
+                #print("extending match to {:s}".format(matching))
         else:
+            #print("no more aug paths")
             more_augmenting_paths = False
     #print("matching:---")
     #print(matching)
@@ -228,10 +242,13 @@ def max_matching(graph):
 
 def main():
     nbr_tests = int(sys.stdin.readline())
-    for i in range(nbr_tests):
-        conflict_graph = read_votes()
-        #print(conflict_graph)
-        print(conflict_graph.nbr_verticies() - len(max_matching(conflict_graph)))
+    if nbr_tests == 0:
+        print("0")
+    else:
+        for i in range(nbr_tests):
+            conflict_graph = read_votes()
+            #print(conflict_graph)
+            print(conflict_graph.nbr_verticies() - len(max_matching(conflict_graph)))
     return 0
 
 
