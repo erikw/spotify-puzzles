@@ -1,6 +1,8 @@
 import java.util.Random;
 
-@author courtersy to Tommy Ivarsson
+/**
+* @author Tommy Ivarsson
+*/
 
 public class InputGenerator {
 

@@ -13,6 +13,12 @@ Determine the subset of dogs and cats that gets to stay in the program to maximi
 import sys
 import copy
 
+#DEBUG_MODE = True
+DEBUG_MODE = False
+
+def debug(text):
+    if DEBUG_MODE: print(text)
+
 class Vertex(object):
     def __init__(self, name):
         self.name = name
@@ -133,9 +139,9 @@ def bipartition(graph):
     for node in graph.verticies:
         if not node in visited:
             bipartition_recurse(u, v, visited, node)
-    #print("bipartiton:")
-    #print("u: %s" % u)
-    #print("v: %s" % v)
+    #debug("bipartiton:")
+    #debug("u: %s" % u)
+    #debug("v: %s" % v)
     return (u, v)
 
 
@@ -155,7 +161,7 @@ def dfs_rec(cur_node, end_nodes, path, discarded_nodes):
         return True
     else:
         path.append(cur_node)
-        #print("poppin' in {:s}, discarded_nodes={:s}".format(cur_node, discarded_nodes))
+        #debug("poppin' in {:s}, discarded_nodes={:s}".format(cur_node, discarded_nodes))
         for neighbour in cur_node.neighbours:
             if neighbour not in discarded_nodes and neighbour not in path and dfs_rec(neighbour, end_nodes, path, discarded_nodes):
                 return True
@@ -163,7 +169,7 @@ def dfs_rec(cur_node, end_nodes, path, discarded_nodes):
         return False
 
 def partial_dfs(u, v, matching, start_node, end_nodes, discarded_nodes):
-    #print("DFS from {:s} to end nodes: {:s}".format(start_node, end_nodes))
+    debug("DFS from {:s} to end nodes: {:s}".format(start_node, end_nodes))
     path = []
     if len(end_nodes) > 0:
         if dfs_rec(start_node, end_nodes, path, discarded_nodes):
@@ -175,7 +181,7 @@ def partial_dfs(u, v, matching, start_node, end_nodes, discarded_nodes):
                 #if i % 2 == 0:
                     #u.discard(node)
                 #else:
-                    ##print("discardingin in v {:s}".format(node))
+                    ##debug("discardingin in v {:s}".format(node))
                     #v.discard(node)
                 #i += 1
     return path
@@ -198,22 +204,18 @@ def tuplify_edges(verticies):
 
 #def maximal_set_aug_paths(u_orig, v_orig, matching):
 def maximal_set_aug_paths(u, v, matching):
-    #u = u_orig.copy() # TODO needed?
-    #v = v_orig.copy()
-    #u = copy.deepcopy(u_orig)
-    #v = copy.deepcopy(v_orig)
-    #print("Searching for new vertex-disjoint paths.")
+    debug("Searching for new vertex-disjoint paths.")
 
     paths = set()
 
     u_free, v_free = free_verticies(u, v, matching)
-    #print("u_free: {:s}".format(u_free))
-    #print("v_free: {:s}".format(v_free))
+    debug("u_free: {:s}".format(u_free))
+    debug("v_free: {:s}".format(v_free))
     discarded_nodes = set()
     for u_node in u_free:
         path = partial_dfs(u, v, matching, u_node, v_free, discarded_nodes)
         if len(path) > 0:
-            #print("path found: {:s}".format(path))
+            debug("path found: {:s}".format(path))
             paths.add(tuplify_edges(path))
     return paths
 
@@ -227,13 +229,13 @@ def hopcoft_karp(u, v):
             for path in aug_paths:
                 #matching = symmetric_difference(matching, path)
                 matching =  matching.symmetric_difference(path)
-                #print("extending match to {:s}".format(matching))
+                debug("extending match to {:s}".format(matching))
         else:
-            #print("no more aug paths")
+            debug("no more aug paths")
             more_augmenting_paths = False
-    #print("matching:---")
-    #print(matching)
-    #print("end-matching:---")
+    #debug("matching:---")
+    #debug(matching)
+    #debug("end-matching:---")
     return matching
 
 def max_matching(graph):
@@ -247,7 +249,7 @@ def main():
     else:
         for i in range(nbr_tests):
             conflict_graph = read_votes()
-            #print(conflict_graph)
+            debug(conflict_graph)
             print(conflict_graph.nbr_verticies() - len(max_matching(conflict_graph)))
     return 0
 
