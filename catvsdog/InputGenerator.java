@@ -6,15 +6,20 @@ import java.util.Random;
 
 public class InputGenerator {
 
+    public static Random rand;
+
+    static {
+        rand = new Random();
+    }
+
 	public static void main(String[] args) {
-		int nbrTests = 100;
+		int nbrTests = 10;
 		System.out.println(nbrTests);
 
 		int cats;
 		int dogs;
 		int voters;
 
-		Random rand = new Random();
 		for(int i = 0; i < nbrTests; i++) {
 			cats = randomBetween(1, 100);
 			dogs = randomBetween(1, 100);
@@ -32,7 +37,7 @@ public class InputGenerator {
 	}
 
 	private static int randomBetween(int low, int high) {
-		return high-low >= 1 ? new Random().nextInt(high-low) + low : low;
+		return high-low >= 1 ? rand.nextInt(high-low) + low : low;
 	}
 }
 
