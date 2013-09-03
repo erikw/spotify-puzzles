@@ -20,7 +20,7 @@ public class InputGenerator {
 		int dogs;
 		int voters;
 
-		for(int i = 0; i < nbrTests; i++) {
+		for (int i = 0; i < nbrTests; i++) {
 			cats = randomBetween(1, 100);
 			dogs = randomBetween(1, 100);
 			voters = randomBetween(0, 500);
